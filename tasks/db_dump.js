@@ -10,7 +10,6 @@
 
 var shell = require('shelljs'),
 	path  = require('path'),
-	fs		= require('fs'),
 	ini	= require('ini');
 
 
@@ -55,7 +54,7 @@ module.exports = function(grunt) {
 	
 	function generate_config(config) {
 		
-		fs.writeFileSync('./config_tmp.ini',ini.stringify({
+		grunt.file.write('./config_tmp.ini',ini.stringify({
 			user: config.user,
 			password: config.pass
 		},'client'));
