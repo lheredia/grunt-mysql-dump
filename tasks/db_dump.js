@@ -9,7 +9,9 @@
 'use strict';
 
 var shell = require('shelljs'),
-	path  = require('path');
+	path  = require('path'),
+	fs		= require('fs'),
+	ini	= require('ini');
 
 
 /**
@@ -18,7 +20,9 @@ var shell = require('shelljs'),
  * https://github.com/gruntjs/grunt/wiki/grunt.template
  */
 var commandTemplates = {
-	mysqldump: "mysqldump --hex-blob -h <%= host %> -P <%= port %> -u<%= user %> <%= pass %> <%= database %>",
+	mysqldump: "mysqldump -h <%= host %> -P <%= port %> -u<%= user %> <%= pass %> <%= database %>",
+	// mysql dump secure
+	mysqldump_secure: 'mysqldump --defaults-file=./config_tmp.ini -h <%= host %> -P <%= port %> "<%= database %>"',
 	ssh: "ssh <%= host %>"
 };
 
@@ -49,6 +53,14 @@ module.exports = function(grunt) {
 		}
 	});
 	
+	function generate_config(config) {
+		
+		fs.writeFileSync('./config_tmp.ini',ini.stringify({
+			user: config.user,
+			password: config.pass
+		},'client'));
+				
+	};	
 
     function generate_backup_paths(target, options) {
         var paths = {};
@@ -74,16 +86,20 @@ module.exports = function(grunt) {
 	    //
 	    // "Process" the password flag directly in the data hash to avoid a "-p" that would trigger a password prompt
 	    // in the shell
-        var tpl_mysqldump = grunt.template.process(commandTemplates.mysqldump, {
+		
+	// replace template for secure mysql dump
+        var tpl_mysqldump = grunt.template.process(commandTemplates.mysqldump_secure, {
             data: {
                 user: options.user,
-                pass: options.pass !== "" ? '--password="' + options.pass + '"' : '',
+                pass: options.pass != "" ? '-p' + options.pass : '',  
                 database: options.database,
                 host: options.host,
 	            port: options.port
             }
         });
-
+		
+	// generate config ini
+	generate_config(options);
 
         // 3) Test whether we should connect via SSH first
         if (typeof options.ssh_host === "undefined") 
@@ -115,12 +131,10 @@ module.exports = function(grunt) {
 
         // Write output to file using native Grunt methods
         grunt.file.write(paths.file, ret.output);
+		
+	// delete tmp config
+	grunt.file.delete('./config_tmp.ini');
         
 	    return true;
     }
 };
-
-
-
-
-
